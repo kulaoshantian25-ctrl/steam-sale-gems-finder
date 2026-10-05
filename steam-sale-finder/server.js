@@ -8,7 +8,7 @@ const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
 // Helper to fetch one page of Steam search
 async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
-  let url = `https://store.steampowered.com/search/results/?query&start=${start}&count=50&specials=1&snr=1_7_7_7000_7`;
+  let url = `https://store.steampowered.com/search/results/?query&start=${start}&count=50&specials=1&snr=1_7_7_7000_7&cc=jp`;
   if (sortBy === 'Reviews_DESC') {
     url += '&sort_by=Reviews_DESC';
   } else if (sortBy === 'topsellers') {
@@ -18,6 +18,7 @@ async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
   const res = await fetch(url, {
     headers: {
       'Accept-Language': 'en-US,en;q=0.9',
+      'Cookie': 'steamCountry=JP%7C00000000000000000000000000000000',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
     }
   });
