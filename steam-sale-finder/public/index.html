@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steam Sale Gems Finder - 高割引×高評価の隠れた名作発掘</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #171a21;
+      color: #c7d5e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .steam-dark {
+      background: linear-gradient(135deg, #1b2838 0%, #171a21 100%);
+    }
+    .steam-card {
+      background: #1e2735;
+      border: 1px solid #2a475e;
+      transition: all 0.2s ease-in-out;
+    }
+    .steam-card:hover {
+      transform: translateY(-3px);
+      border-color: #66c0f4;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    .discount-badge {
+      background-color: #4c6b22;
+      color: #beee11;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+    }
+    input[type=range] {
+      accent-color: #66c0f4;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-[#171a21] border-b border-[#2a475e] sticky top-0 z-40 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <i class="fa-brands fa-steam text-3xl text-[#66c0f4]"></i>
+        <div>
+          <h1 class="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+            Steam Sale Gems Finder
+            <span class="text-xs px-2 py-0.5 rounded bg-blue-900/60 text-[#66c0f4] border border-blue-500/30">個人専用</span>
+          </h1>
+          <p class="text-xs text-gray-400">70%以上OFF × 高評価 × レビュー多数 × ウィッシュリスト除外</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="openExcludeModalBtn" class="flex items-center gap-2 bg-[#2a475e] hover:bg-[#1b2838] text-white text-xs sm:text-sm px-3 py-2 rounded border border-[#66c0f4]/40 transition">
+          <i class="fa-solid fa-user-shield text-[#66c0f4]"></i>
+          <span>除外 / アカウント設定</span>
+          <span id="excludedCountBadge" class="bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+        </button>
+
+        <button id="refreshSalesBtn" class="flex items-center gap-1.5 bg-[#4c6b22] hover:bg-[#5c822a] text-[#beee11] font-semibold text-xs sm:text-sm px-3 py-2 rounded transition shadow">
+          <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i>
+          <span>最新セール再取得</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-[#1b2838] border-t border-[#2a475e]/60 px-4 py-3">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-center text-sm">
+        
+        <!-- Discount Slider -->
+        <div>
+          <div class="flex justify-between text-xs text-gray-300 mb-1">
+            <span>割引率:</span>
+            <span class="font-bold text-[#beee11]" id="valDiscount">70% 以上</span>
+          </div>
+          <input type="range" id="filterDiscount" min="30" max="90" step="5" value="70" class="w-full h-1.5 bg-[#171a21] rounded cursor-pointer">
+        </div>
+
+        <!-- Review Count Slider -->
+        <div>
+          <div class="flex justify-between text-xs text-gray-300 mb-1">
+            <span>最低レビュー数:</span>
+            <span class="font-bold text-[#66c0f4]" id="valReviews">1,000 件</span>
+          </div>
+          <input type="range" id="filterReviews" min="100" max="20000" step="100" value="1000" class="w-full h-1.5 bg-[#171a21] rounded cursor-pointer">
+        </div>
+
+        <!-- Rating Percent Slider -->
+        <div>
+          <div class="flex justify-between text-xs text-gray-300 mb-1">
+            <span>最低好評率:</span>
+            <span class="font-bold text-[#66c0f4]" id="valRating">85% 以上</span>
+          </div>
+          <input type="range" id="filterRating" min="70" max="98" step="1" value="85" class="w-full h-1.5 bg-[#171a21] rounded cursor-pointer">
+        </div>
+
+        <!-- Sort Option -->
+        <div>
+          <label class="block text-xs text-gray-300 mb-1">並び順:</label>
+          <select id="sortBy" class="w-full bg-[#171a21] border border-[#2a475e] text-white text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-[#66c0f4]">
+            <option value="reviews_desc">レビュー総数 順</option>
+            <option value="rating_desc">好評割合 順</option>
+            <option value="discount_desc">割引率 順</option>
+            <option value="price_asc">セール価格が安い 順</option>
+          </select>
+        </div>
+
+        <!-- Search Keyword -->
+        <div>
+          <label class="block text-xs text-gray-300 mb-1">タイトル検索:</label>
+          <div class="relative">
+            <input type="text" id="searchKeyword" placeholder="ゲーム名を入力..." class="w-full bg-[#171a21] border border-[#2a475e] text-white text-xs rounded pl-7 pr-2 py-1.5 focus:outline-none focus:border-[#66c0f4]">
+            <i class="fa-solid fa-magnifying-glass absolute left-2 top-2 text-gray-400 text-xs"></i>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Status / Quick Counter -->
+  <div class="max-w-7xl mx-auto w-full px-4 pt-4 flex flex-wrap items-center justify-between text-xs text-gray-400 gap-2">
+    <div>
+      該当作品: <span id="displayCount" class="text-white font-bold text-sm">0</span> 件 
+      <span class="text-gray-500">/ 取得済全セール <span id="totalCount">0</span> 件</span>
+      <span id="cacheInfo" class="ml-2 text-[11px] text-gray-400"></span>
+    </div>
+    <div class="flex items-center gap-3">
+      <label class="inline-flex items-center cursor-pointer gap-1.5">
+        <input type="checkbox" id="toggleOnlyExcluded" class="rounded bg-[#171a21] border-[#2a475e] text-blue-500">
+        <span class="hover:text-gray-200">除外した作品のみを表示する</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loading" class="flex-1 flex flex-col items-center justify-center py-20 text-center">
+    <div class="animate-spin rounded-full h-12 w-12 border-4 border-[#2a475e] border-t-[#66c0f4] mb-4"></div>
+    <p class="text-base text-gray-300 font-medium">Steamセール情報を取得中...</p>
+    <p class="text-xs text-gray-500 mt-1">初回はSteamストアのデータを集約するため十数秒ほどかかります</p>
+  </div>
+
+  <!-- Main Grid -->
+  <main id="gameGrid" class="max-w-7xl mx-auto w-full px-4 py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 hidden">
+    <!-- Game cards rendered dynamically -->
+  </main>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="hidden flex-1 flex flex-col items-center justify-center py-20 text-center">
+    <i class="fa-solid fa-filter-circle-xmark text-5xl text-gray-600 mb-3"></i>
+    <p class="text-lg font-bold text-gray-300">条件に合う作品が見つかりませんでした</p>
+    <p class="text-xs text-gray-500 mt-1">割引率やレビュー数の条件を少し緩めてみてください</p>
+  </div>
+
+  <!-- Exclusion & Account Modal -->
+  <div id="excludeModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-[#1b2838] border border-[#2a475e] rounded-xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#2a475e]">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-shield text-[#66c0f4]"></i>
+          ウィッシュリスト ＆ 所有ゲームの除外設定
+        </h3>
+        <button id="closeExcludeModalBtn" class="text-gray-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div class="space-y-5 text-xs sm:text-sm">
+        
+        <!-- Option A: DynamicStore Easy Import (Most Reliable) -->
+        <div class="bg-[#171a21] p-4 rounded-lg border border-[#2a475e]">
+          <h4 class="font-bold text-white mb-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
+            <span class="bg-[#66c0f4] text-black font-extrabold text-[10px] px-1.5 rounded">おすすめ</span>
+            Steamストアからワンクリックで読み込み (簡単 & APIキー不要)
+          </h4>
+          <p class="text-gray-400 text-xs mb-3 leading-relaxed">
+            普段Steamにログインしているブラウザで以下のURLを開くと、あなたのウィッシュリスト・所持ゲームIDが表示されます。その内容を丸ごとコピーして貼り付けてください。
+          </p>
+          <div class="mb-3">
+            <a href="https://store.steampowered.com/dynamicstore/userdata/" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-[#66c0f4] hover:underline bg-[#2a475e]/60 px-3 py-1.5 rounded border border-[#66c0f4]/30">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              ブラウザで userdata を開く (新しいタブ)
+            </a>
+          </div>
+          <textarea id="userdataJsonInput" rows="3" placeholder="開いたページのJSONテキストをここに貼り付け..." class="w-full bg-[#1b2838] border border-[#2a475e] rounded p-2 text-xs text-gray-200 font-mono focus:outline-none focus:border-[#66c0f4]"></textarea>
+          <div class="mt-2 flex justify-end">
+            <button id="applyUserdataBtn" class="bg-[#4c6b22] hover:bg-[#5c822a] text-[#beee11] font-bold text-xs px-3 py-1.5 rounded transition">
+              JSONを解析して除外に登録
+            </button>
+          </div>
+        </div>
+
+        <!-- Option B: Steam Web API -->
+        <div class="bg-[#171a21] p-4 rounded-lg border border-[#2a475e]">
+          <h4 class="font-bold text-white mb-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
+            Steam ID / Web API 経由で取得
+          </h4>
+          <p class="text-gray-400 text-xs mb-3">
+            SteamID64（17桁の数字）を入力してください。プロフィールの公開設定が必要です。
+          </p>
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">SteamID64 (必須):</label>
+              <input type="text" id="steamIdInput" placeholder="例: 76561198000000000" class="w-full bg-[#1b2838] border border-[#2a475e] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#66c0f4]">
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Steam Web API Key (任意・所有ゲームも取得したい場合):</label>
+              <input type="text" id="steamApiKeyInput" placeholder="API Key（任意）" class="w-full bg-[#1b2838] border border-[#2a475e] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#66c0f4]">
+            </div>
+            <div class="flex justify-end pt-1">
+              <button id="fetchAccountBtn" class="bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs px-3 py-1.5 rounded transition">
+                Steamから同期
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Currently Excluded Info -->
+        <div class="border-t border-[#2a475e] pt-3 flex items-center justify-between">
+          <div class="text-xs text-gray-400">
+            現在除外されているAppID数: <span id="modalExcludedCount" class="font-bold text-[#66c0f4]">0</span> 本
+          </div>
+          <button id="clearExcludedBtn" class="text-xs text-red-400 hover:text-red-300 underline">
+            除外リストを全消去
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let allSales = [];
+    let excludedAppIds = new Set();
+    let showOnlyExcluded = false;
+
+    // Load excluded from localStorage
+    function loadExcluded() {
+      try {
+        const saved = localStorage.getItem('steam_sale_excluded_apps');
+        if (saved) {
+          const arr = JSON.parse(saved);
+          excludedAppIds = new Set(arr.map(String));
+        }
+      } catch (e) {
+        console.error('Error loading excluded apps:', e);
+      }
+      updateExcludedUI();
+    }
+
+    // Save excluded to localStorage
+    function saveExcluded() {
+      try {
+        localStorage.setItem('steam_sale_excluded_apps', JSON.stringify(Array.from(excludedAppIds)));
+      } catch (e) {
+        console.error('Error saving excluded apps:', e);
+      }
+      updateExcludedUI();
+      renderGames();
+    }
+
+    function updateExcludedUI() {
+      const count = excludedAppIds.size;
+      document.getElementById('excludedCountBadge').textContent = count;
+      document.getElementById('modalExcludedCount').textContent = count;
+    }
+
+    function excludeApp(appId) {
+      excludedAppIds.add(String(appId));
+      saveExcluded();
+    }
+
+    function unexcludeApp(appId) {
+      excludedAppIds.delete(String(appId));
+      saveExcluded();
+    }
+
+    // Load sales from server
+    async function fetchSales(refresh = false) {
+      const loading = document.getElementById('loading');
+      const gameGrid = document.getElementById('gameGrid');
+      const emptyState = document.getElementById('emptyState');
+      const refreshIcon = document.getElementById('refreshIcon');
+
+      loading.classList.remove('hidden');
+      gameGrid.classList.add('hidden');
+      emptyState.classList.add('hidden');
+      if (refresh) refreshIcon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch(`/api/sales?refresh=${refresh}`);
+        const data = await res.json();
+        allSales = data.items || [];
+        
+        document.getElementById('totalCount').textContent = allSales.length;
+        if (data.timestamp) {
+          const dt = new Date(data.timestamp);
+          document.getElementById('cacheInfo').textContent = `(データ取得: ${dt.toLocaleTimeString()})`;
+        }
+      } catch (err) {
+        alert('セール情報の取得に失敗しました: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
+        if (refresh) refreshIcon.classList.remove('animate-spin');
+        renderGames();
+      }
+    }
+
+    // Filter and Render
+    function renderGames() {
+      const minDiscount = parseInt(document.getElementById('filterDiscount').value, 10);
+      const minReviews = parseInt(document.getElementById('filterReviews').value, 10);
+      const minRating = parseInt(document.getElementById('filterRating').value, 10);
+      const sortBy = document.getElementById('sortBy').value;
+      const search = document.getElementById('searchKeyword').value.trim().toLowerCase();
+
+      // Filter
+      let filtered = allSales.filter(item => {
+        const isExcluded = excludedAppIds.has(String(item.appId));
+        if (showOnlyExcluded) {
+          if (!isExcluded) return false;
+        } else {
+          if (isExcluded) return false;
+        }
+
+        if (item.discount < minDiscount) return false;
+        if (item.reviewCount === null || item.reviewCount < minReviews) return false;
+        if (item.reviewPercent === null || item.reviewPercent < minRating) return false;
+        if (search && !item.title.toLowerCase().includes(search)) return false;
+
+        return true;
+      });
+
+      // Sort
+      filtered.sort((a, b) => {
+        if (sortBy === 'reviews_desc') {
+          return (b.reviewCount || 0) - (a.reviewCount || 0);
+        } else if (sortBy === 'rating_desc') {
+          if ((b.reviewPercent || 0) !== (a.reviewPercent || 0)) {
+            return (b.reviewPercent || 0) - (a.reviewPercent || 0);
+          }
+          return (b.reviewCount || 0) - (a.reviewCount || 0);
+        } else if (sortBy === 'discount_desc') {
+          if (b.discount !== a.discount) return b.discount - a.discount;
+          return (b.reviewCount || 0) - (a.reviewCount || 0);
+        } else if (sortBy === 'price_asc') {
+          return (a.numPrice || 999999) - (b.numPrice || 999999);
+        }
+        return 0;
+      });
+
+      document.getElementById('displayCount').textContent = filtered.length;
+
+      const gameGrid = document.getElementById('gameGrid');
+      const emptyState = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        gameGrid.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      gameGrid.classList.remove('hidden');
+
+      gameGrid.innerHTML = filtered.map(item => {
+        const isExcluded = excludedAppIds.has(String(item.appId));
+        const ratingColor = (item.reviewPercent >= 95) ? 'text-cyan-400' : 'text-blue-400';
+        
+        return `
+          <div class="steam-card rounded-lg overflow-hidden flex flex-col justify-between relative group">
+            
+            <!-- Capsule Image Banner -->
+            <div class="relative bg-black/40 overflow-hidden h-32 flex items-center justify-center">
+              <img src="${item.img}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://cdn.cloudflare.steamstatic.com/steam/apps/${item.appId}/header.jpg'">
+              
+              <!-- Big Discount Badge Overlaid -->
+              <div class="absolute top-2 right-2 discount-badge font-extrabold text-sm px-2.5 py-1 rounded shadow">
+                -${item.discount}%
+              </div>
+
+              <!-- Quick Exclude / Restore Button -->
+              <button onclick="${isExcluded ? `unexcludeApp('${item.appId}')` : `excludeApp('${item.appId}')`}" title="${isExcluded ? '除外を解除' : 'この作品を除外（所持済み/興味なし）'}" class="absolute top-2 left-2 bg-black/70 hover:bg-red-600 text-white text-xs px-2 py-1 rounded backdrop-blur-sm transition border border-white/20">
+                <i class="fa-solid ${isExcluded ? 'fa-rotate-left' : 'fa-xmark'}"></i>
+                <span>${isExcluded ? '復帰' : '除外'}</span>
+              </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="p-4 flex-1 flex flex-col justify-between">
+              
+              <!-- Title -->
+              <div>
+                <a href="${item.storeUrl}" target="_blank" class="font-bold text-white hover:text-[#66c0f4] text-base leading-snug line-clamp-1 transition" title="${item.title}">
+                  ${item.title}
+                </a>
+
+                <!-- Review Stats -->
+                <div class="mt-2 text-xs flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-bold ${ratingColor}">
+                      <i class="fa-solid fa-thumbs-up mr-0.5"></i>${item.reviewPercent}% 好評
+                    </span>
+                    <span class="text-gray-400 text-[11px]">(${item.reviewCount ? item.reviewCount.toLocaleString() : 0}件)</span>
+                  </div>
+                  <span class="text-[11px] text-gray-300 font-medium">${item.reviewSentiment || ''}</span>
+                </div>
+
+                <!-- Rating Progress Bar -->
+                <div class="w-full bg-[#171a21] h-1.5 rounded-full mt-1.5 overflow-hidden">
+                  <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full" style="width: ${item.reviewPercent || 0}%"></div>
+                </div>
+              </div>
+
+              <!-- Bottom Price & Store Action -->
+              <div class="mt-4 pt-3 border-t border-[#2a475e]/60 flex items-center justify-between">
+                <div>
+                  <span class="text-xs text-gray-500 line-through mr-1">${item.origPrice}</span>
+                  <span class="text-lg font-extrabold text-[#beee11]">${item.finalPrice}</span>
+                </div>
+
+                <a href="${item.storeUrl}" target="_blank" class="inline-flex items-center gap-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs px-3 py-1.5 rounded transition font-medium">
+                  <span>ストア</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Setup Event Listeners
+    function setupEvents() {
+      // Sliders
+      const dSlider = document.getElementById('filterDiscount');
+      const rSlider = document.getElementById('filterReviews');
+      const pSlider = document.getElementById('filterRating');
+
+      dSlider.addEventListener('input', () => {
+        document.getElementById('valDiscount').textContent = `${dSlider.value}% 以上`;
+        renderGames();
+      });
+      rSlider.addEventListener('input', () => {
+        document.getElementById('valReviews').textContent = `${parseInt(rSlider.value, 10).toLocaleString()} 件`;
+        renderGames();
+      });
+      pSlider.addEventListener('input', () => {
+        document.getElementById('valRating').textContent = `${pSlider.value}% 以上`;
+        renderGames();
+      });
+
+      document.getElementById('sortBy').addEventListener('change', renderGames);
+      document.getElementById('searchKeyword').addEventListener('input', renderGames);
+
+      // Only Excluded toggle
+      document.getElementById('toggleOnlyExcluded').addEventListener('change', (e) => {
+        showOnlyExcluded = e.target.checked;
+        renderGames();
+      });
+
+      // Refresh Button
+      document.getElementById('refreshSalesBtn').addEventListener('click', () => {
+        fetchSales(true);
+      });
+
+      // Modal Controls
+      const modal = document.getElementById('excludeModal');
+      document.getElementById('openExcludeModalBtn').addEventListener('click', () => {
+        modal.classList.remove('hidden');
+      });
+      document.getElementById('closeExcludeModalBtn').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+
+      // Clear Excluded
+      document.getElementById('clearExcludedBtn').addEventListener('click', () => {
+        if (confirm('すべての除外登録をリセットしますか？')) {
+          excludedAppIds.clear();
+          saveExcluded();
+        }
+      });
+
+      // Userdata JSON paste parser
+      document.getElementById('applyUserdataBtn').addEventListener('click', () => {
+        const text = document.getElementById('userdataJsonInput').value.trim();
+        if (!text) {
+          alert('JSONテキストを貼り付けてください。');
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(text);
+          let addedCount = 0;
+
+          // Extract rgWishlist
+          if (Array.isArray(parsed.rgWishlist)) {
+            parsed.rgWishlist.forEach(id => {
+              excludedAppIds.add(String(id));
+              addedCount++;
+            });
+          }
+
+          // Extract rgOwnedApps
+          if (Array.isArray(parsed.rgOwnedApps)) {
+            parsed.rgOwnedApps.forEach(id => {
+              excludedAppIds.add(String(id));
+              addedCount++;
+            });
+          }
+
+          // Extract rgIgnoredApps
+          if (Array.isArray(parsed.rgIgnoredApps)) {
+            parsed.rgIgnoredApps.forEach(id => {
+              excludedAppIds.add(String(id));
+              addedCount++;
+            });
+          }
+
+          saveExcluded();
+          alert(`登録完了: 合計 ${addedCount} 本のゲームを除外リストに追加しました！`);
+          document.getElementById('userdataJsonInput').value = '';
+          modal.classList.add('hidden');
+        } catch (e) {
+          alert('JSONの解析に失敗しました。正しいフォーマットか確認してください: ' + e.message);
+        }
+      });
+
+      // Fetch Account API
+      document.getElementById('fetchAccountBtn').addEventListener('click', async () => {
+        const steamId = document.getElementById('steamIdInput').value.trim();
+        const apiKey = document.getElementById('steamApiKeyInput').value.trim();
+        if (!steamId) {
+          alert('SteamID64を入力してください。');
+          return;
+        }
+
+        const btn = document.getElementById('fetchAccountBtn');
+        btn.disabled = true;
+        btn.textContent = '取得中...';
+
+        try {
+          const res = await fetch('/api/account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ steamId, apiKey })
+          });
+          const data = await res.json();
+          let count = 0;
+          if (data.wishlistAppIds) {
+            data.wishlistAppIds.forEach(id => {
+              excludedAppIds.add(String(id));
+              count++;
+            });
+          }
+          if (data.ownedAppIds) {
+            data.ownedAppIds.forEach(id => {
+              excludedAppIds.add(String(id));
+              count++;
+            });
+          }
+          saveExcluded();
+          alert(`Steamから同期完了: 合計 ${count} 本の作品を除外リストに登録しました！`);
+          modal.classList.add('hidden');
+        } catch (e) {
+          alert('アカウント情報の取得に失敗しました: ' + e.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Steamから同期';
+        }
+      });
+    }
+
+    // Initialize
+    loadExcluded();
+    setupEvents();
+    fetchSales(false);
+  </script>
+</body>
+</html>

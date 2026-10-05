@@ -1,0 +1,15 @@
+{
+  "name": "steam-sale-gems-finder",
+  "version": "1.0.0",
+  "description": "Find highly rated Steam sales with 70%+ discounts, excluding your wishlist and owned games",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["steam", "sale", "deals"],
+  "author": "",
+  "license": "MIT"
+}
