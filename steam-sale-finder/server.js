@@ -4,7 +4,8 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3456;
 const CACHE_FILE = path.join(__dirname, 'sales_cache.json');
-const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+let fetchPromise = null;
 
 // Helper to fetch one page of Steam search
 async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
@@ -98,58 +99,68 @@ async function fetchAllSales(force = false) {
     }
   }
 
-  console.log('Fetching fresh sale data from Steam...');
-  const appMap = new Map();
+  if (fetchPromise) {
+    console.log('Fetch already in progress, waiting for existing operation...');
+    return fetchPromise;
+  }
 
-  // Fetch top pages of Reviews_DESC (top rated sales)
-  for (let page = 0; page < 8; page++) {
-    const start = page * 50;
-    try {
-      console.log(`Fetching Reviews_DESC page ${page + 1} (start=${start})...`);
-      const items = await fetchSteamSearchPage(start, 'Reviews_DESC');
-      for (const item of items) {
-        if (!appMap.has(item.appId)) {
-          appMap.set(item.appId, item);
+  fetchPromise = (async () => {
+    console.log('Fetching fresh sale data from Steam (deep sweep)...');
+    const appMap = new Map();
+
+    // Fetch top pages of Reviews_DESC (expanded to 28 pages = 1,400 items)
+    for (let page = 0; page < 28; page++) {
+      const start = page * 50;
+      try {
+        console.log(`Fetching Reviews_DESC page ${page + 1}/28 (start=${start})...`);
+        const items = await fetchSteamSearchPage(start, 'Reviews_DESC');
+        for (const item of items) {
+          if (!appMap.has(item.appId)) {
+            appMap.set(item.appId, item);
+          }
         }
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        console.error(`Error on Reviews_DESC page ${page}:`, e.message);
       }
-      // Small pause to be polite
-      await new Promise(r => setTimeout(r, 200));
-    } catch (e) {
-      console.error(`Error on page ${page}:`, e.message);
     }
-  }
 
-  // Fetch top pages of Topsellers (popular sales)
-  for (let page = 0; page < 6; page++) {
-    const start = page * 50;
-    try {
-      console.log(`Fetching topsellers page ${page + 1} (start=${start})...`);
-      const items = await fetchSteamSearchPage(start, 'topsellers');
-      for (const item of items) {
-        if (!appMap.has(item.appId)) {
-          appMap.set(item.appId, item);
+    // Fetch top pages of Topsellers (expanded to 12 pages = 600 items)
+    for (let page = 0; page < 12; page++) {
+      const start = page * 50;
+      try {
+        console.log(`Fetching topsellers page ${page + 1}/12 (start=${start})...`);
+        const items = await fetchSteamSearchPage(start, 'topsellers');
+        for (const item of items) {
+          if (!appMap.has(item.appId)) {
+            appMap.set(item.appId, item);
+          }
         }
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        console.error(`Error on topsellers page ${page}:`, e.message);
       }
-      await new Promise(r => setTimeout(r, 200));
-    } catch (e) {
-      console.error(`Error on topsellers page ${page}:`, e.message);
     }
-  }
 
-  const allItems = Array.from(appMap.values());
-  const cacheData = {
-    timestamp: Date.now(),
-    items: allItems
-  };
+    const allItems = Array.from(appMap.values());
+    const cacheData = {
+      timestamp: Date.now(),
+      items: allItems
+    };
 
-  try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
-    console.log(`Saved ${allItems.length} items to cache file.`);
-  } catch (e) {
-    console.error('Failed writing cache:', e);
-  }
+    try {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
+      console.log(`Saved ${allItems.length} items to cache file.`);
+    } catch (e) {
+      console.error('Failed writing cache:', e);
+    }
 
-  return cacheData;
+    return cacheData;
+  })().finally(() => {
+    fetchPromise = null;
+  });
+
+  return fetchPromise;
 }
 
 // Fetch wishlist and owned games via Steam API
