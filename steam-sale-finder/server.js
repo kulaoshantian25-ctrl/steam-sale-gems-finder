@@ -18,9 +18,10 @@ async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
 
   const res = await fetch(url, {
     headers: {
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Cookie': 'steamCountry=JP%7C00000000000000000000000000000000',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      'Cookie': 'steamCountry=JP%7C00000000000000000000000000000000; timezoneOffset=32400,0'
     }
   });
 
@@ -108,54 +109,64 @@ async function fetchAllSales(force = false) {
     console.log('Fetching fresh sale data from Steam (deep sweep)...');
     const appMap = new Map();
 
-    // Fetch top pages of Reviews_DESC (expanded to 28 pages = 1,400 items)
-    for (let page = 0; page < 28; page++) {
+    // Fetch top pages of Reviews_DESC (18 pages = 900 items, enough to catch 850th items like To the Moon)
+    for (let page = 0; page < 18; page++) {
       const start = page * 50;
       try {
-        console.log(`Fetching Reviews_DESC page ${page + 1}/28 (start=${start})...`);
+        console.log(`Fetching Reviews_DESC page ${page + 1}/18 (start=${start})...`);
         const items = await fetchSteamSearchPage(start, 'Reviews_DESC');
         for (const item of items) {
           if (!appMap.has(item.appId)) {
             appMap.set(item.appId, item);
           }
         }
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 600));
       } catch (e) {
         console.error(`Error on Reviews_DESC page ${page}:`, e.message);
       }
     }
 
-    // Fetch top pages of Topsellers (expanded to 12 pages = 600 items)
-    for (let page = 0; page < 12; page++) {
+    // Fetch top pages of Topsellers (6 pages = 300 items)
+    for (let page = 0; page < 6; page++) {
       const start = page * 50;
       try {
-        console.log(`Fetching topsellers page ${page + 1}/12 (start=${start})...`);
+        console.log(`Fetching topsellers page ${page + 1}/6 (start=${start})...`);
         const items = await fetchSteamSearchPage(start, 'topsellers');
         for (const item of items) {
           if (!appMap.has(item.appId)) {
             appMap.set(item.appId, item);
           }
         }
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 600));
       } catch (e) {
         console.error(`Error on topsellers page ${page}:`, e.message);
       }
     }
 
     const allItems = Array.from(appMap.values());
-    const cacheData = {
-      timestamp: Date.now(),
-      items: allItems
-    };
+    if (allItems.length > 0) {
+      const cacheData = {
+        timestamp: Date.now(),
+        items: allItems
+      };
 
-    try {
-      fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
-      console.log(`Saved ${allItems.length} items to cache file.`);
-    } catch (e) {
-      console.error('Failed writing cache:', e);
+      try {
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
+        console.log(`Saved ${allItems.length} items to cache file.`);
+      } catch (e) {
+        console.error('Failed writing cache:', e);
+      }
+
+      return cacheData;
+    } else {
+      console.warn('Steam fetch returned 0 items. Keeping existing cache safely.');
+      if (fs.existsSync(CACHE_FILE)) {
+        try {
+          return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+        } catch (e) {}
+      }
+      return { timestamp: Date.now(), items: [] };
     }
-
-    return cacheData;
   })().finally(() => {
     fetchPromise = null;
   });
