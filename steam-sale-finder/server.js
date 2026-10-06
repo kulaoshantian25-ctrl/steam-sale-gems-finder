@@ -20,7 +20,7 @@ async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Cookie': 'steamCountry=JP%7C00000000000000000000000000000000; timezoneOffset=32400,0'
     }
   });
@@ -48,11 +48,29 @@ async function fetchSteamSearchPage(start = 0, sortBy = 'Reviews_DESC') {
     let reviewSentiment = null;
     if (reviewMatch) {
       const tooltip = reviewMatch[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
-      const pctCountMatch = tooltip.match(/(\d+)%\s+of the\s+([\d,]+)\s+user reviews/i);
-      if (pctCountMatch) {
-        reviewPercent = parseInt(pctCountMatch[1], 10);
-        reviewCount = parseInt(pctCountMatch[2].replace(/,/g, ''), 10);
+      
+      // 1. English format: "95% of the 69,730 user reviews for this game are positive."
+      const enMatch = tooltip.match(/(\d+)%\s+of the\s+([\d,]+)\s+user reviews/i);
+      if (enMatch) {
+        reviewPercent = parseInt(enMatch[1], 10);
+        reviewCount = parseInt(enMatch[2].replace(/,/g, ''), 10);
       }
+      
+      // 2. Japanese format: "ユーザーレビュー69,730件中95%が好評です"
+      const jaMatch = tooltip.match(/ユーザーレビュー\s*([\d,]+)\s*件中\s*(\d+)%\s*が好評/);
+      if (jaMatch) {
+        reviewCount = parseInt(jaMatch[1].replace(/,/g, ''), 10);
+        reviewPercent = parseInt(jaMatch[2], 10);
+      }
+      
+      // 3. Fallback generic match
+      if (reviewPercent === null || reviewCount === null) {
+        const pct = tooltip.match(/(\d+)%/);
+        const cnt = tooltip.match(/([\d,]+)\s*(?:件|user reviews|reviews)/i);
+        if (pct) reviewPercent = parseInt(pct[1], 10);
+        if (cnt) reviewCount = parseInt(cnt[1].replace(/,/g, ''), 10);
+      }
+
       const sentMatch = tooltip.match(/^([^<]+)/);
       if (sentMatch) {
         reviewSentiment = sentMatch[1].trim();
